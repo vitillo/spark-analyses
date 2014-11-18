@@ -7,13 +7,15 @@ import org.json4s.jackson.JsonMethods._
 
 import Mozilla.Telemetry._
 
+// 'export _JAVA_OPTIONS="-XmxNg"' to increase memory for a local cluster
+
 object Analysis{
   def main(args: Array[String]) {
     val conf = new SparkConf().setAppName("mozilla-telemetry").setMaster("local[*]")
     implicit val sc = new SparkContext(conf)
     implicit lazy val formats = DefaultFormats
 
-    val pings = Pings("Firefox", "nightly", "36.0a1", "*", ("20141106")).RDD(0.3)
+    val pings = Pings("Firefox", "nightly", "36.0a1", "*", "20141104").RDD(0.1)
     val processHangs = pings.map(ping => parse(ping.substring(37)) \ "threadHangStats").cache
 
     val threadHangs = processHangs.flatMap{ case JArray(list) =>
@@ -68,7 +70,7 @@ object Analysis{
     println("Flash stack ratio: " + pluginStacksRatio)
     println("Flash timing ratio: " + pluginStacksTimeRatio)
     println("Flash frames considered:")
-    println(pluginFrames.foreach(println))
+    println(pluginFrames.foreach(frame => println(frame.extract[String])))
 
     sc.stop()
   }
