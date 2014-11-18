@@ -25,7 +25,7 @@ object Analysis{
       list
     })
 
-    val stacks = map(hang => {
+    val stacks = threadHangs.map(hang => {
       val JObject(bins) = hang \ "histogram" \ "values"
 
       val count = bins.map{
