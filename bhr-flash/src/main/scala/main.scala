@@ -13,17 +13,19 @@ object Analysis{
     implicit val sc = new SparkContext(conf)
     implicit lazy val formats = DefaultFormats
 
-    val pings = Pings("Firefox", "nightly", "36.0a1", "*", ("20141106")).RDD(0.1)
+    val pings = Pings("Firefox", "nightly", "36.0a1", "*", ("20141106")).RDD(0.3)
     val processHangs = pings.map(ping => parse(ping.substring(37)) \ "threadHangStats").cache
 
-    val stacks = processHangs.flatMap{ case JArray(list) =>
+    val threadHangs = processHangs.flatMap{ case JArray(list) =>
       list
     }.filter(threadHangs =>
       threadHangs \ "name" == JString("Gecko")
     ).flatMap(threadHangs => {
       val JArray(list) = threadHangs \ "hangs"
       list
-    }).map(hang => {
+    })
+
+    val stacks = map(hang => {
       val JObject(bins) = hang \ "histogram" \ "values"
 
       val count = bins.map{
@@ -32,7 +34,7 @@ object Analysis{
       }.sum
 
       val time = bins.map{
-        case (bin, JInt(cnt)) => bin.toInt * cnt.toInt
+        case (bin, JInt(cnt)) => 0.5*(bin.toInt + bin.toInt*2)*cnt.toInt
         case _ => 0.toInt
       }.sum
 
@@ -63,8 +65,9 @@ object Analysis{
       stack.filter(frame => frame.extract[String].startsWith("IPDL::PPlugin"))
     }}.distinct.collect
 
-    println("Flash stacks: " + pluginStacksRatio)
-    println("Flash frames considered: " + pluginStacksTimeRatio)
+    println("Flash stack ratio: " + pluginStacksRatio)
+    println("Flash timing ratio: " + pluginStacksTimeRatio)
+    println("Flash frames considered:")
     println(pluginFrames.foreach(println))
 
     sc.stop()
