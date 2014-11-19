@@ -15,7 +15,7 @@ object Analysis{
     implicit val sc = new SparkContext(conf)
     implicit lazy val formats = DefaultFormats
 
-    val pings = Pings("Firefox", "nightly", "36.0a1", "*", "20141104").RDD(0.1)
+    val pings = Pings("Firefox", "nightly", "36.0a1", "*", "20141106").RDD(0.1)
     val processHangs = pings.map(ping => parse(ping.substring(37)) \ "threadHangStats").cache
 
     val threadHangs = processHangs.flatMap{ case JArray(list) =>
@@ -32,12 +32,12 @@ object Analysis{
 
       val count = bins.map{
         case (bin, JInt(cnt)) => cnt.toInt
-        case _ => 0.toInt
+        case _ => 0
       }.sum
 
       val time = bins.map{
         case (bin, JInt(cnt)) => 0.5*(bin.toInt + bin.toInt*2)*cnt.toInt
-        case _ => 0.toInt
+        case _ => 0
       }.sum
 
       (hang \ "stack", count, time)
@@ -60,15 +60,23 @@ object Analysis{
       found
     }}
 
-    val pluginStacksRatio = pluginStacks.map(_._2).sum/stacks.map(_._2).sum
-    val pluginStacksTimeRatio = pluginStacks.map(_._3).sum/stacks.map(_._3).sum
+    val otherStacks = stacks.subtract(pluginStacks)
+
+    val numberOfTotalStacks = stacks.map(_._2).sum
+    val numberOfPluginStacks = pluginStacks.map(_._2).sum
+    val numberOfOtherStacks = otherStacks.map(_._2).sum
+
+    val pluginStacksRatio = numberOfPluginStacks/numberOfTotalStacks
+    val expectedTimePerPluginStack = pluginStacks.map(_._3).sum/numberOfPluginStacks
+    val expectedTimePerOtherStack = stacks.map(_._3).sum/numberOfOtherStacks
 
     val pluginFrames = stacks.flatMap{ case (JArray(stack), count, time) => {
       stack.filter(frame => frame.extract[String].startsWith("IPDL::PPlugin"))
     }}.distinct.collect
 
     println("Flash stack ratio: " + pluginStacksRatio)
-    println("Flash timing ratio: " + pluginStacksTimeRatio)
+    println("Expected hang in ms for plugin stack " + expectedTimePerPluginStack)
+    println("Expected hang in ms for non-plugin stack " + expectedTimePerOtherStack)
     println("Flash frames considered:")
     println(pluginFrames.foreach(frame => println(frame.extract[String])))
 
