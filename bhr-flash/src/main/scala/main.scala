@@ -75,6 +75,8 @@ object Analysis{
     }}.distinct.collect
 
     println("Flash stack ratio: " + pluginStacksRatio)
+    println("Number of plugin stacks: " + numberOfPluginStacks)
+    println("Number of non-plugin stacks: " + numberOfOtherStacks)
     println("Expected hang in ms for plugin stack " + expectedTimePerPluginStack)
     println("Expected hang in ms for non-plugin stack " + expectedTimePerOtherStack)
     println("Flash frames considered:")
