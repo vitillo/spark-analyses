@@ -74,11 +74,11 @@ object Analysis{
 
     val pluginStacksRatio = numberOfPluginStacks.toDouble/numberOfTotalStacks
 
-    val medianPos = numberOfPluginStacks/2
-    val pluginMedian = pluginStacks.sortBy(x => x._2).zipWithIndex().filter(_._2 == medianPos).first()._1._1._2
+    val pluginMedianPos = numberOfPluginStacks/2
+    val pluginMedian = pluginStacks.sortBy(x => x._2).zipWithIndex().filter(_._2 == pluginMedianPos).first()._1._1._2
 
-    val medianPos = numberOfOtherStacks/2
-    val otherMedian = otherStacks.sortBy(x => x._2).zipWithIndex().filter(_._2 == medianPos).first()._1._1._2
+    val otherMedianPos = numberOfOtherStacks/2
+    val otherMedian = otherStacks.sortBy(x => x._2).zipWithIndex().filter(_._2 == otherMedianPos).first()._1._1._2
 
     val pluginFrames = stacks.flatMap{ case ((stack, time), isPlugin) => {
       stack.filter(frame => frame.extract[String].startsWith("IPDL::PPlugin"))
