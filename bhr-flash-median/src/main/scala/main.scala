@@ -17,7 +17,7 @@ import Mozilla.Telemetry._
 
 object Analysis{
   def main(args: Array[String]) {
-    val conf = new SparkConf().setAppName("mozilla-telemetry").setMaster("local[*]")
+    val conf = new SparkConf().setAppName("mozilla-telemetry").setMaster("local[*]").set("spark.local.dir", "/tmp")
     implicit val sc = new SparkContext(conf)
     implicit lazy val formats = DefaultFormats
 
@@ -27,8 +27,9 @@ object Analysis{
     // removing pings without flashVersion has basically no impact whatsoever on
     // total number of plugin stacks, not that it means really much...
 
-    val threadHangs = processHangs.flatMap{ case JArray(list) =>
-      list
+    val threadHangs = processHangs.flatMap{
+      case JArray(list) => list
+      case _ => Nil
     }.filter(threadHangs =>
       threadHangs \ "name" == JString("Gecko")
     ).flatMap(threadHangs => {
