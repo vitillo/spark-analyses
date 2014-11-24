@@ -92,7 +92,10 @@ object Analysis{
     println("Median hang duration for plugin stacks: " + pluginMedian)
     println("Median hang duration for non-plugin stacks: " + otherMedian)
     println("Flash frames considered:")
-    println(pluginFrames.foreach(frame => println(frame.extract[String])))
+
+    pluginFrames.toSeq.sortBy(_._2).map{ case (frame, count) => {
+      println(frame.extract[String], count.toDouble/totalFrames)
+    }}
 
     sc.stop()
   }
