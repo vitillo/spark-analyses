@@ -23,9 +23,6 @@ object Analysis{
 
     val pings = Pings("Firefox", "nightly", "36.0a1", "*", "20141106").RDD(0.1)
     val processHangs = pings.map(ping => parse(ping.substring(37)) \ "threadHangStats").cache
-    // val processHangs = pings.filter(_.contains("flashVersion")).map(ping => parse(ping.substring(37)) \ "threadHangStats").cache
-    // removing pings without flashVersion has basically no impact whatsoever on
-    // total number of plugin stacks, not that it means really much...
 
     val threadHangs = processHangs.flatMap{
       case JArray(list) => list
@@ -39,14 +36,13 @@ object Analysis{
 
     val stacks = threadHangs.flatMap(hang => {
       val JObject(bins) = hang \ "histogram" \ "values"
-      val JArray(stack) = hang \ "stack"
+      val JArray(rawStack) = hang \ "stack"
+      val stack = rawStack.map(_.extract[String])
       var isPlugin = false
 
       try{
         for(frame <- stack){
-          val name = frame.extract[String]
-
-          if(name.startsWith("IPDL::PPlugin")) // PPluginModule, PPluginInstance, ...
+          if(frame.startsWith("IPDL::PPlugin")) // PPluginModule, PPluginInstance, ...
             throw new Exception()
         }
       } catch {
@@ -81,9 +77,15 @@ object Analysis{
     val otherMedianPos = numberOfOtherStacks/2
     val otherMedian = otherStacks.sortBy(x => x._2).zipWithIndex().filter(_._2 == otherMedianPos).first()._1._1._2
 
-    val pluginFrames = stacks.flatMap{ case ((stack, time), isPlugin) => {
-      stack.filter(frame => frame.extract[String].startsWith("IPDL::PPlugin"))
-    }}.distinct.collect
+    val topPluginStacks = pluginStacks.countByValue.toSeq.sortBy(- _._2).take(10).map{ case (((stack, median), plug), count) => {
+      (stack, 100.0*count/numberOfPluginStacks)
+    }}
+
+    val topPluginClusters = pluginStacks.map{ case((stack, median), plug) => {
+      (stack.last, 1)
+    }}.countByKey.toSeq.sortBy(- _._2).take(10).map{ case(frame, count) => {
+      (frame, 100.0*count/numberOfPluginStacks)
+    }}
 
     println("Number of pings analyzed " + processHangs.count)
     println("Flash stack ratio: " + pluginStacksRatio)
@@ -91,11 +93,12 @@ object Analysis{
     println("Number of non-plugin stacks: " + numberOfOtherStacks)
     println("Median hang duration for plugin stacks: " + pluginMedian)
     println("Median hang duration for non-plugin stacks: " + otherMedian)
-    println("Flash frames considered:")
 
-    pluginFrames.toSeq.sortBy(_._2).map{ case (frame, count) => {
-      println(frame.extract[String], count.toDouble/totalFrames)
-    }}
+    println("Top plugin stacks: ")
+    topPluginStacks.foreach{ case(stack, freq) => println(stack + " " + freq + " %")}
+
+    println("Top plugin clusters grouped by the last frame: ")
+    topPluginClusters.foreach{ case(frame, freq) => println(frame + " " + freq + " %")}
 
     sc.stop()
   }
