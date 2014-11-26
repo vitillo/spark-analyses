@@ -77,7 +77,7 @@ object Analysis{
     val otherMedianPos = numberOfOtherStacks/2
     val otherMedian = otherStacks.sortBy(x => x._2).zipWithIndex().filter(_._2 == otherMedianPos).first()._1._1._2
 
-    val topPluginStacks = pluginStacks.countByValue.toSeq.sortBy(- _._2).take(10).map{ case (((stack, median), plug), count) => {
+    val topPluginStacks = pluginStacks.map(_._1._1).countByValue.toSeq.sortBy(- _._2).take(10).map{ case (stack, count) => {
       (stack, 100.0*count/numberOfPluginStacks)
     }}
 
