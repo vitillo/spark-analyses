@@ -1,3 +1,5 @@
+import java.io._
+
 import scala.math._
 
 import org.apache.spark.SparkContext
@@ -38,11 +40,49 @@ object Analysis{
 
       hangs.map(hang => {
         val JObject(bins) = hang \ "histogram" \ "values"
-        bins.map{ case (bin, JInt(cnt)) => cnt }.sum
+        val sum = bins.map{ case (bin, JInt(cnt)) => cnt }.sum
+        assert(sum > 0)
+        sum
       }).sum.toDouble
-    })
+    }).filter(_ > 0)
 
-    sessionHangs.stats
+    val writer = new PrintWriter(new File("session.csv" ))
+    sessionHangs.collect.foreach(x => writer.println(x))
+    writer.close()
+
+    val pluginHangs = processHangs.flatMap{
+      case JArray(list) => list
+      case _ => Nil
+    }.filter(threadHangs =>
+      threadHangs \ "name" == JString("Gecko")
+    ).map(threadHangs => {
+      val JArray(hangs) = threadHangs \ "hangs"
+
+      hangs.filter( hang => {
+        var isPlugin = false
+        val JArray(stack) = hang \ "stack"
+
+        try{
+          stack.foreach(frame => {
+            if(frame.extract[String].startsWith("IPDL::PPlugin")) // PPluginModule, PPluginInstance, ...
+              throw new Exception()
+          })
+        } catch {
+          case e: Exception => isPlugin = true
+        }
+
+        isPlugin
+      }).map(hang => {
+        val JObject(bins) = hang \ "histogram" \ "values"
+        val sum = bins.map{ case (bin, JInt(cnt)) => cnt }.sum
+        assert(sum > 0)
+        sum
+      }).sum.toDouble
+    }).filter(_ > 0)
+
+    val writer = new PrintWriter(new File("plugins.csv" ))
+    pluginHangs.collect.foreach(x => writer.println(x))
+    writer.close()
 
     sc.stop()
   }
